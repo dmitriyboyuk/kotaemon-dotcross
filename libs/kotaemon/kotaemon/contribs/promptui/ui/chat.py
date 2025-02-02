@@ -198,7 +198,7 @@ def build_chat_ui(config, pipeline_def):
 
         gr.Info("New chat session started.")
         return (
-            [],
+            [[None, "Hi, what would you like to know?"]], 
             [],
             None,
             param_state_str,

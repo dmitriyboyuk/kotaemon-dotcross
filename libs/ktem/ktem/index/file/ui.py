@@ -1539,7 +1539,7 @@ class FileSelector(BasePage):
             for result in results:
                 item = result[0]
                 options.append(
-                    (f"group: '{item.name}'", json.dumps(item.data.get("files", [])))
+                    (f"group: '{item.name}'", tuple(item.data.get("files", [])))
                 )
 
         if selected_files:

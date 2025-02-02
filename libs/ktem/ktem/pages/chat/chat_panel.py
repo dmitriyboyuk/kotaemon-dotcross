@@ -12,6 +12,7 @@ class ChatPanel(BasePage):
     def on_building_ui(self):
         self.chatbot = gr.Chatbot(
             label=self._app.app_name,
+            value=[[None, "Hi, what would you like to know?"]],
             placeholder=(
                 "This is the beginning of a new conversation.\n"
                 "You can visit the Data tab for uploading patient sources." 
