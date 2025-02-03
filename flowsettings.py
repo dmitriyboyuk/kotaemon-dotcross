@@ -2,9 +2,199 @@ import os
 from importlib.metadata import version
 from inspect import currentframe, getframeinfo
 from pathlib import Path
+import dotenv
 
-from decouple import config
+from decouple import AutoConfig, Config, RepositoryEnv
 from ktem.utils.lang import SUPPORTED_LANGUAGE_MAP
+
+print("\n=== Debug - Environment Setup ===")
+print("Current working directory:", os.getcwd())
+print("Environment files in directory:")
+for file in os.listdir():
+    if file.startswith('.env'):
+        print(f"Found: {file}")
+env_path = os.path.join(os.getcwd(), '.env')
+print(f"Using .env file at: {env_path}")
+
+# Load environment variables directly using python-dotenv
+dotenv.load_dotenv(env_path, override=True)
+
+print("Environment file contents:")
+with open(env_path, 'r') as f:
+    for line in f:
+        if 'OPENAI' in line:
+            print(f"  {line.strip()}")
+
+print("\nEnvironment variables after loading:")
+for key in os.environ:
+    if 'OPENAI' in key:
+        value = os.environ[key]
+        print(f"  {key} = {value[:10]}..." if 'KEY' in key else f"  {key} = {value}")
+
+# Force python-decouple to use our specific .env file
+config = Config(RepositoryEnv(env_path))
+
+# Initialize empty dictionaries for settings
+KH_LLMS = {}
+KH_EMBEDDINGS = {}
+KH_RERANKINGS = {}
+
+# Basic app settings
+KH_OLLAMA_URL = config("KH_OLLAMA_URL", default="http://localhost:11434/v1/")
+KH_APP_DATA_DIR = Path(os.getcwd()) / "ktem_app_data"
+KH_USER_DATA_DIR = KH_APP_DATA_DIR / "user_data"
+KH_APP_DATA_DIR.mkdir(parents=True, exist_ok=True)
+KH_USER_DATA_DIR.mkdir(parents=True, exist_ok=True)
+
+# Load OpenAI settings
+OPENAI_API_KEY = config('OPENAI_API_KEY')  # Remove default='' to ensure it's required
+OPENAI_API_BASE = config('OPENAI_API_BASE', default='https://api.openai.com/v1')
+OPENAI_CHAT_MODEL = config('OPENAI_CHAT_MODEL', default='gpt-4o-mini')
+OPENAI_EMBEDDINGS_MODEL = config('OPENAI_EMBEDDINGS_MODEL', default='text-embedding-ada-002')
+
+print("\n=== Debug - OpenAI Settings ===")
+print(f"OPENAI_API_KEY = {OPENAI_API_KEY[:10]}...")
+print(f"OPENAI_API_BASE = {OPENAI_API_BASE}")
+print(f"OPENAI_CHAT_MODEL = {OPENAI_CHAT_MODEL}")
+print(f"OPENAI_EMBEDDINGS_MODEL = {OPENAI_EMBEDDINGS_MODEL}")
+print("===============================\n")
+
+# Set OpenAI environment variables explicitly
+os.environ['OPENAI_API_KEY'] = OPENAI_API_KEY
+os.environ['OPENAI_API_BASE'] = OPENAI_API_BASE
+os.environ['OPENAI_CHAT_MODEL'] = OPENAI_CHAT_MODEL
+os.environ['OPENAI_EMBEDDINGS_MODEL'] = OPENAI_EMBEDDINGS_MODEL
+
+print("=== Debug - Environment Variables After Setting ===")
+for key in os.environ:
+    if 'OPENAI' in key:
+        value = os.environ[key]
+        print(f"  {key} = {value[:10]}..." if 'KEY' in key else f"  {key} = {value}")
+print("===============================\n")
+
+# Configure OpenAI LLM settings
+print("\n=== Debug - Configuring OpenAI LLM Settings ===")
+print(f"Using API key: {OPENAI_API_KEY[:10]}...")
+
+# Add our OpenAI settings
+KH_LLMS["openai"] = {
+    "spec": {
+        "__type__": "kotaemon.llms.ChatOpenAI",
+        "temperature": 0,
+        "base_url": OPENAI_API_BASE,
+        "api_key": OPENAI_API_KEY,
+        "model": OPENAI_CHAT_MODEL,
+        "timeout": 30,
+    },
+    "default": True,
+}
+
+KH_EMBEDDINGS["openai"] = {
+    "spec": {
+        "__type__": "kotaemon.embeddings.OpenAIEmbeddings",
+        "base_url": OPENAI_API_BASE,
+        "api_key": OPENAI_API_KEY,
+        "model": OPENAI_EMBEDDINGS_MODEL,
+        "timeout": 30,
+        "context_length": 8191,
+    },
+    "default": True,
+}
+
+print("OpenAI LLM and Embeddings settings configured with API key")
+print("Current OpenAI LLM settings:")
+print(f"  API Key: {KH_LLMS['openai']['spec']['api_key'][:10]}...")
+print(f"  Base URL: {KH_LLMS['openai']['spec']['base_url']}")
+print(f"  Model: {KH_LLMS['openai']['spec']['model']}")
+print(f"  Temperature: {KH_LLMS['openai']['spec']['temperature']}")
+print(f"  Timeout: {KH_LLMS['openai']['spec']['timeout']}")
+print("===============================\n")
+
+# Configure other LLM settings
+if config("LOCAL_MODEL", default=""):
+    print("\n=== Debug - Configuring Ollama Settings ===")
+    local_model = config("LOCAL_MODEL", default="deepseek-r1:1.5b")
+    local_embeddings_model = config("LOCAL_MODEL_EMBEDDINGS", default="nomic-embed-text")
+    print(f"Local Model: {local_model}")
+    print(f"Local Embeddings Model: {local_embeddings_model}")
+    print(f"Ollama URL: {KH_OLLAMA_URL}")
+    
+    KH_LLMS["ollama"] = {
+        "spec": {
+            "__type__": "kotaemon.llms.ChatOpenAI",
+            "base_url": KH_OLLAMA_URL,
+            "model": local_model,
+            "api_key": "ollama",
+        },
+        "default": False,
+    }
+    KH_EMBEDDINGS["ollama"] = {
+        "spec": {
+            "__type__": "kotaemon.embeddings.OpenAIEmbeddings",
+            "base_url": KH_OLLAMA_URL,
+            "model": local_embeddings_model,
+            "api_key": "ollama",
+        },
+        "default": False,
+    }
+    print("Ollama settings configured")
+    print("===============================\n")
+
+# Configure Azure OpenAI if enabled
+if config("AZURE_OPENAI_API_KEY", default="") and config("AZURE_OPENAI_ENDPOINT", default=""):
+    print("\n=== Debug - Configuring Azure OpenAI Settings ===")
+    azure_endpoint = config("AZURE_OPENAI_ENDPOINT", default="")
+    azure_api_key = config("AZURE_OPENAI_API_KEY", default="")
+    azure_api_version = config("OPENAI_API_VERSION", default="") or "2024-02-15-preview"
+    azure_chat_deployment = config("AZURE_OPENAI_CHAT_DEPLOYMENT", default="")
+    azure_embeddings_deployment = config("AZURE_OPENAI_EMBEDDINGS_DEPLOYMENT", default="")
+    
+    print(f"Azure Endpoint: {azure_endpoint}")
+    print(f"Azure API Version: {azure_api_version}")
+    print(f"Azure Chat Deployment: {azure_chat_deployment}")
+    print(f"Azure Embeddings Deployment: {azure_embeddings_deployment}")
+    
+    if azure_chat_deployment:
+        KH_LLMS["azure"] = {
+            "spec": {
+                "__type__": "kotaemon.llms.AzureChatOpenAI",
+                "temperature": 0,
+                "azure_endpoint": azure_endpoint,
+                "api_key": azure_api_key,
+                "api_version": azure_api_version,
+                "azure_deployment": azure_chat_deployment,
+                "timeout": 20,
+            },
+            "default": False,
+        }
+    if azure_embeddings_deployment:
+        KH_EMBEDDINGS["azure"] = {
+            "spec": {
+                "__type__": "kotaemon.embeddings.AzureOpenAIEmbeddings",
+                "azure_endpoint": azure_endpoint,
+                "api_key": azure_api_key,
+                "api_version": azure_api_version,
+                "azure_deployment": azure_embeddings_deployment,
+                "timeout": 10,
+            },
+            "default": False,
+        }
+    print("Azure OpenAI settings configured")
+    print("===============================\n")
+
+print("\n=== Debug - Final LLM Configuration ===")
+print("Available LLMs:", list(KH_LLMS.keys()))
+print("Default LLM:", next((k for k, v in KH_LLMS.items() if v.get("default")), None))
+for llm_name, llm_config in KH_LLMS.items():
+    print(f"\n{llm_name} configuration:")
+    for key, value in llm_config["spec"].items():
+        if 'api_key' in key:
+            print(f"  {key}: {value[:10]}...")
+        else:
+            print(f"  {key}: {value}")
+print("===============================\n")
+
+# Import default settings after configuring our settings
 from theflow.settings.default import *  # noqa
 
 cur_frame = currentframe()
@@ -34,10 +224,6 @@ KH_OLLAMA_URL = config("KH_OLLAMA_URL", default="http://localhost:11434/v1/")
 KH_APP_DATA_DIR = this_dir / "ktem_app_data"
 KH_APP_DATA_EXISTS = KH_APP_DATA_DIR.exists()
 KH_APP_DATA_DIR.mkdir(parents=True, exist_ok=True)
-
-# User data directory
-KH_USER_DATA_DIR = KH_APP_DATA_DIR / "user_data"
-KH_USER_DATA_DIR.mkdir(parents=True, exist_ok=True)
 
 # markdown output directory
 KH_MARKDOWN_OUTPUT_DIR = KH_APP_DATA_DIR / "markdown_cache_dir"
@@ -99,9 +285,6 @@ KH_VECTORSTORE = {
     # "__type__": "kotaemon.storages.QdrantVectorStore",
     "path": str(KH_USER_DATA_DIR / "vectorstore"),
 }
-KH_LLMS = {}
-KH_EMBEDDINGS = {}
-KH_RERANKINGS = {}
 
 # populate options from config
 if config("AZURE_OPENAI_API_KEY", default="") and config(
@@ -136,33 +319,6 @@ if config("AZURE_OPENAI_API_KEY", default="") and config(
             },
             "default": False,
         }
-
-if config("OPENAI_API_KEY", default=""):
-    KH_LLMS["openai"] = {
-        "spec": {
-            "__type__": "kotaemon.llms.ChatOpenAI",
-            "temperature": 0,
-            "base_url": config("OPENAI_API_BASE", default="")
-            or "https://api.openai.com/v1",
-            "api_key": config("OPENAI_API_KEY", default=""),
-            "model": config("OPENAI_CHAT_MODEL", default="gpt-3.5-turbo"),
-            "timeout": 20,
-        },
-        "default": True,
-    }
-    KH_EMBEDDINGS["openai"] = {
-        "spec": {
-            "__type__": "kotaemon.embeddings.OpenAIEmbeddings",
-            "base_url": config("OPENAI_API_BASE", default="https://api.openai.com/v1"),
-            "api_key": config("OPENAI_API_KEY", default=""),
-            "model": config(
-                "OPENAI_EMBEDDINGS_MODEL", default="text-embedding-ada-002"
-            ),
-            "timeout": 10,
-            "context_length": 8191,
-        },
-        "default": True,
-    }
 
 if config("LOCAL_MODEL", default=""):
     KH_LLMS["ollama"] = {
@@ -309,12 +465,12 @@ KH_UPLOAD_MULTIPLE_PIPELINES = config(
 KH_RENAME_UI_FILES_TAB = config("KH_RENAME_UI_FILES_TAB", default="Files", cast=str)
 # KH_CHAT_CUSTOM_PLACEHOLDER = config("KH_CHAT_CUSTOM_PLACEHOLDER", default="", cast=str)
 KH_CHAT_CUSTOM_PLACEHOLDER = config("KH_CHAT_CUSTOM_PLACEHOLDER", default=False, cast=bool)
-KH_FEEDBACK_CORRECTNESS_LABEL = config("KH_FEEDBACK_CORRECTNESS_LABEL", default="", cast=str)
-KH_FEEDBACK_CORRECT = config("KH_FEEDBACK_CORRECT", default="", cast=str)
-KH_FEEDBACK_INCORRECT = config("KH_FEEDBACK_INCORRECT", default="", cast=str)
-KH_FEEDBACK_DATA_LABEL= config("KH_FEEDBACK_DATA_LABEL", default="", cast=str)
-KH_FEEDBACK_DATA_SUFFICIENT= config("KH_FEEDBACK_DATA_SUFFICIENT", default="", cast=str)
-KH_FEEDBACK_DATA_INSUFFICIENT= config("KH_FEEDBACK_DATA_INSUFFICIENT", default="", cast=str)
+KH_FEEDBACK_CORRECTNESS_LABEL = os.environ.get("KH_FEEDBACK_CORRECTNESS_LABEL", "Was the response correct?")
+KH_FEEDBACK_CORRECT = os.environ.get("KH_FEEDBACK_CORRECT", "Correct")
+KH_FEEDBACK_INCORRECT = os.environ.get("KH_FEEDBACK_INCORRECT", "Incorrect")
+KH_FEEDBACK_DATA_LABEL = os.environ.get("KH_FEEDBACK_DATA_LABEL", "Was data retrieved sufficient?")
+KH_FEEDBACK_DATA_SUFFICIENT = os.environ.get("KH_FEEDBACK_DATA_SUFFICIENT", "Sufficient")
+KH_FEEDBACK_DATA_INSUFFICIENT = os.environ.get("KH_FEEDBACK_DATA_INSUFFICIENT", "Insufficient")
 
 USE_NANO_GRAPHRAG = config("USE_NANO_GRAPHRAG", default=False, cast=bool)
 USE_LIGHTRAG = config("USE_LIGHTRAG", default=False, cast=bool)
@@ -368,3 +524,44 @@ KH_INDICES = [
     },
     *GRAPHRAG_INDICES,
 ]
+
+# Add these to SETTINGS_APP to make them available throughout the application
+SETTINGS_APP = {
+    "feedback": {
+        "name": "Feedback Settings",
+        "value": "",
+        "component": "text",
+        "settings": {
+            "correctness_label": {
+                "name": "Feedback Correctness Label",
+                "value": KH_FEEDBACK_CORRECTNESS_LABEL,
+                "component": "text"
+            },
+            "correct_label": {
+                "name": "Correct Feedback Label",
+                "value": KH_FEEDBACK_CORRECT,
+                "component": "text"
+            },
+            "incorrect_label": {
+                "name": "Incorrect Feedback Label",
+                "value": KH_FEEDBACK_INCORRECT,
+                "component": "text"
+            },
+            "data_label": {
+                "name": "Data Feedback Label",
+                "value": KH_FEEDBACK_DATA_LABEL,
+                "component": "text"
+            },
+            "data_sufficient": {
+                "name": "Data Sufficient Label",
+                "value": KH_FEEDBACK_DATA_SUFFICIENT,
+                "component": "text"
+            },
+            "data_insufficient": {
+                "name": "Data Insufficient Label",
+                "value": KH_FEEDBACK_DATA_INSUFFICIENT,
+                "component": "text"
+            }
+        }
+    }
+}

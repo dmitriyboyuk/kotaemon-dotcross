@@ -1,6 +1,7 @@
 import gradio as gr
 from decouple import config
 from ktem.app import BaseApp
+from ktem.settings import SettingItem
 from ktem.pages.chat import ChatPage
 from ktem.pages.help import HelpPage
 from ktem.pages.about import AboutPage
@@ -8,6 +9,7 @@ from ktem.pages.resources import ResourcesTab
 from ktem.pages.settings import SettingsPage
 from ktem.pages.setup import SetupPage
 from theflow.settings import settings as flowsettings
+import os
 
 KH_DEMO_MODE = getattr(flowsettings, "KH_DEMO_MODE", False)
 KH_ENABLE_FIRST_SETUP = getattr(flowsettings, "KH_ENABLE_FIRST_SETUP", False)
@@ -40,6 +42,43 @@ class App(BaseApp):
         - Subscribe public events
         - Register events
     """
+
+    def __init__(self):
+        super().__init__()
+        
+        # Determine default providers with fallback logic
+        openai_api_key = config("OPENAI_API_KEY", default="")
+        default_llm = "openai" if openai_api_key else "ollama"
+        default_embedding = "openai" if openai_api_key else "ollama"
+        
+        # Add feedback settings to the application settings using flowsettings values
+        self.default_settings.application.settings.update({
+            "feedback.correctness_label": SettingItem(
+                name="Feedback Correctness Label",
+                value=flowsettings.KH_FEEDBACK_CORRECTNESS_LABEL,
+                component="text"
+            ),
+            "feedback.correct_label": SettingItem(
+                name="Correct Feedback Label",
+                value=flowsettings.KH_FEEDBACK_CORRECT,
+                component="text"
+            ),
+            "feedback.incorrect_label": SettingItem(
+                name="Incorrect Feedback Label",
+                value=flowsettings.KH_FEEDBACK_INCORRECT,
+                component="text"
+            ),
+            "llm.provider": SettingItem(
+                name="Default LLM Provider",
+                value=default_llm,
+                component="text"
+            ),
+            "embeddings.provider": SettingItem(
+                name="Default Embeddings Provider",
+                value=default_embedding,
+                component="text"
+            ),
+        })
 
     def ui(self):
         """Render the UI"""

@@ -3,6 +3,7 @@ import glob
 import logging
 import os
 import re
+import json
 from pathlib import Path
 from typing import Generator
 
@@ -364,6 +365,15 @@ class NanoGraphRAGRetrieverPipeline(BaseFileIndexRetriever):
 
     def _build_graph_search(self):
         file_id = self.file_ids[0]
+        
+        # Handle JSON string case
+        if isinstance(file_id, str):
+            try:
+                parsed = json.loads(file_id)
+                if isinstance(parsed, list) and len(parsed) > 0:
+                    file_id = parsed[0]  # Take the first file ID from the list
+            except json.JSONDecodeError:
+                pass  # Keep original file_id if it's not valid JSON
 
         # retrieve the graph_id from the index
         with Session(engine) as session:

@@ -441,12 +441,12 @@ class ChatPage(BasePage):
         )
         self.chat_control.btn_new.click(
             self.chat_control.new_conv,
-            inputs=self._app.user_id,
+            inputs=[self._app.user_id],
             outputs=[self.chat_control.conversation_id, self.chat_control.conversation],
             show_progress="hidden",
         ).then(
             self.chat_control.select_conv,
-            inputs=[self.chat_control.conversation, self._app.user_id],
+            inputs=[self.chat_control.conversation_id, self._app.user_id],
             outputs=[
                 self.chat_control.conversation_id,
                 self.chat_control.conversation,
@@ -459,17 +459,8 @@ class ChatPage(BasePage):
                 self.state_plot_history,
                 self.chat_control.cb_is_public,
                 self.state_chat,
-            ]
-            + self._indices_input,
+            ] + self._indices_input,
             show_progress="hidden",
-        ).then(
-            fn=self._json_to_plot,
-            inputs=self.state_plot_panel,
-            outputs=self.plot_panel,
-        ).then(
-            fn=None,
-            inputs=None,
-            js=chat_input_focus_js,
         )
 
         self.chat_control.btn_del.click(

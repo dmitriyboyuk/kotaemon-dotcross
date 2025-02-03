@@ -691,7 +691,7 @@ class FileIndexPage(BasePage):
 
         try:
             # quick file upload event registration of first Index only
-            if self._index.id == 1:
+            if self._index.id == 1 and not flowsettings.KH_REMOVE_QUICK_UPLOAD_BOX:
                 self.quick_upload_state = gr.State(value=[])
                 print("Setting up quick upload event")
 

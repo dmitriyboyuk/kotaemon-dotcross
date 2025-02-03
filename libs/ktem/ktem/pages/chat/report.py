@@ -5,7 +5,15 @@ from ktem.app import BasePage
 from ktem.db.models import IssueReport, engine
 from sqlmodel import Session
 
-from theflow.settings import settings as flowsettings
+import flowsettings
+
+# print("\n=== Debug - Feedback Settings ===")
+# print("Loading flowsettings module:", flowsettings.__file__)
+# print("Environment variables loaded in flowsettings:")
+# for key in dir(flowsettings):
+#     if key.startswith('KH_FEEDBACK'):
+#         print(f"{key} = {getattr(flowsettings, key)}")
+# print("===============================\n")
 
 class ReportIssue(BasePage):
     def __init__(self, app):
@@ -14,56 +22,42 @@ class ReportIssue(BasePage):
 
     def on_building_ui(self):
         with gr.Accordion(label="Feedback", open=False):
+            # Get feedback labels from flowsettings
+            correctness_label = getattr(flowsettings, "KH_FEEDBACK_CORRECTNESS_LABEL", "Was the response correct?")
+            correct_option = getattr(flowsettings, "KH_FEEDBACK_CORRECT", "Correct")
+            incorrect_option = getattr(flowsettings, "KH_FEEDBACK_INCORRECT", "Incorrect")
+
+            sufficiency_label = getattr(flowsettings, "KH_FEEDBACK_DATA_LABEL", "Was data retrieved sufficient?")
+            sufficient_option = getattr(flowsettings, "KH_FEEDBACK_DATA_SUFFICIENT", "Sufficient")
+            insufficient_option = getattr(flowsettings, "KH_FEEDBACK_DATA_INSUFFICIENT", "Insufficient")
+
+            # print("\n=== Debug - Feedback UI Values ===")
+            # print(f"Correctness Question: {correctness_label}")
+            # print(f"Correctness Options: {correct_option}, {incorrect_option}")
+            # print(f"Data Question: {sufficiency_label}")
+            # print(f"Data Options: {sufficient_option}, {insufficient_option}")
+            # print("===============================\n")
+
             self.correctness = gr.Radio(
                 choices=[
-                    (
-                        getattr(
-                            flowsettings,
-                            "KH_FEEDBACK_CORRECT",
-                            "The answer is correct",
-                        ), "correct"
-                    ),
-                    (
-                        getattr(
-                            flowsettings,
-                            "KH_FEEDBACK_INCORRECT",
-                            "The answer is incorrect",
-                        ), "incorrect"
-                    ),
-                    # ("The answer is incorrect", "incorrect"),
+                    (correct_option, "correct"),
+                    (incorrect_option, "incorrect"),
                 ],
-                label=getattr(
-                            flowsettings,
-                            "KH_FEEDBACK_CORRECTNESS_LABEL",
-                            "Correctness:",
-                        )
+                label=correctness_label,
+                value=None
             )
-            self.issues = gr.CheckboxGroup(
+
+            # Second radio group for evidence sufficiency
+            self.issues = gr.Radio(
                 choices=[
-                    (
-                        getattr(
-                            flowsettings,
-                            "KH_FEEDBACK_DATA_SUFFICIENT",
-                            "The answer is correct",
-                        ), "correct"
-                    ),
-                    (
-                        getattr(
-                            flowsettings,
-                            "KH_FEEDBACK_DATA_INSUFFICIENT",
-                            "The answer is incorrect",
-                        ), "incorrect"
-                    ),
-                    # ("The answer is offensive", "offensive"),
-                    # ("The evidence is incorrect", "wrong-evidence"),
+                    (sufficient_option, "sufficient_data"),
+                    (insufficient_option, "insufficient_data"),
                 ],
-                label=getattr(
-                            flowsettings,
-                            "KH_FEEDBACK_DATA_LABEL",
-                            "Other issue:",
-                        )
-                # label="Other issue:",
+                label=sufficiency_label,
+                value=None
             )
+
+            # Additional details textbox
             self.more_detail = gr.Textbox(
                 placeholder=(
                     "More detail (e.g. how wrong is it, what is the "
@@ -81,7 +75,7 @@ class ReportIssue(BasePage):
     def report(
         self,
         correctness: str,
-        issues: list[str],
+        issues: str,
         more_detail: str,
         conv_id: str,
         chat_history: list,
@@ -105,7 +99,7 @@ class ReportIssue(BasePage):
             issue = IssueReport(
                 issues={
                     "correctness": correctness,
-                    "issues": issues,
+                    "issues": [issues] if issues else [],
                     "more_detail": more_detail,
                 },
                 chat={
