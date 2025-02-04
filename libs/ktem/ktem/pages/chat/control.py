@@ -4,7 +4,7 @@ from copy import deepcopy
 
 import gradio as gr
 from ktem.app import BasePage
-from ktem.db.models import Conversation, User, engine
+from ktem.db.models import Conversation, User, engine#, Notes
 from sqlmodel import Session, or_, select
 
 import flowsettings
@@ -468,3 +468,39 @@ class ConversationControl(BasePage):
                 *index_outputs
             ],
         )
+
+    def load_chat_history_messages(self, conversation_id):
+        with Session(engine) as session:
+            statement = select(Conversation).where(Conversation.id == conversation_id)
+            result = session.exec(statement).one()
+        return result
+
+
+    ## TODO:
+    # def create_notes(self, conversation_id):
+    #     with Session(engine) as session:
+    #         notes = Notes(
+    #             conversation_id=conversation_id,
+    #             notes=None,
+    #         )
+    #         session.add(notes)
+    #         session.commit()
+    #         return notes
+
+    # def get_notes(self, conversation_id):
+    #     with Session(engine) as session:
+    #         statement = select(Notes).where(Notes.conversation_id == conversation_id)
+    #         result = session.exec(statement).one()
+    #         if not result:
+    #             result = self.create_notes(conversation_id)
+    #         return result.get("notes", [])
+
+    # def edit_notes(self, conversation_id, notes):
+    #     with Session(engine) as session:
+    #         statement = select(Notes).where(Notes.conversation_id == conversation_id)
+    #         result = session.exec(statement).one()
+    #         result.notes = notes
+    #         session.add(result)
+    #         session.commit()
+
+    #         return notes

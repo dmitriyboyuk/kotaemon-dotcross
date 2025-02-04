@@ -116,6 +116,8 @@ class ChatPage(BasePage):
     def __init__(self, app):
         self._app = app
         self._indices_input = []
+        self._tb = None
+        self._tbox = None
 
         self.on_building_ui()
 
@@ -127,6 +129,7 @@ class ChatPage(BasePage):
         )
         self._info_panel_expanded = gr.State(value=True)
         self._command_state = gr.State(value=None)
+        # self._notes = gr.State(value=None)
 
     def on_building_ui(self):
         with gr.Row():
@@ -271,12 +274,24 @@ class ChatPage(BasePage):
             with gr.Column(
                 scale=INFO_PANEL_SCALES[False], elem_id="chat-info-panel"
             ) as self.info_column:
-                with gr.Accordion(
-                    label="Information panel", open=True, elem_id="info-expand"
-                ):
-                    self.modal = gr.HTML("<div id='pdf-modal'></div>")
-                    self.plot_panel = gr.Plot(visible=False)
-                    self.info_panel = gr.HTML(elem_id="html-info-panel")
+                with gr.Tabs():
+                    with gr.Tab("Sources"):
+                        with gr.Accordion(
+                            label="Information panel", open=True, elem_id="info-expand"
+                        ):
+                            self.modal = gr.HTML("<div id='pdf-modal'></div>")
+                            self.plot_panel = gr.Plot(visible=False)
+                            self.info_panel = gr.HTML(elem_id="html-info-panel")
+
+                    with gr.Tab("Notes") as self._tb:
+                        self._tbox = gr.TextArea(
+                            label="Summary",
+                            # value="## HI",
+                            lines=18,
+                            elem_id="summary-tbox",
+                            interactive=True,
+                        )                        
+
 
     def _json_to_plot(self, json_dict: dict | None):
         if json_dict:
@@ -286,9 +301,59 @@ class ChatPage(BasePage):
             plot = gr.update(visible=False)
         return plot
 
+    def load_conv_to_textbox(self, conversation_id):
+        from ktem.llms.manager import llms
+        from kotaemon.base.schema import AIMessage, HumanMessage, SystemMessage
+
+        print(f"{conversation_id=}")
+        conv = self.chat_control.load_chat_history_messages(
+            conversation_id=conversation_id,
+        )
+
+        summarize_prompt = """
+        You are a helpful assistant that summarizes text.
+        The input to this task is a section of a document.
+        The output is a summary of the section, structured by atomic paragraphs.
+        Chat history:
+        """
+
+        chat_history = "\n".join([
+            "\n".join(
+                [f"Human: {h}", f"Assistant: {a}"]
+            ) for h, a in conv.data_source["messages"]
+        ])
+        print(f"{chat_history=}")
+        messages = [
+            SystemMessage(content=summarize_prompt),
+            HumanMessage(content=chat_history)
+        ] 
+        llm = llms.get_default()
+        response = llm(messages).content
+
+        self._tbox = gr.TextArea(
+            value=response,
+            # value=chat_history,
+            interactive=True,
+        )
+
+        return self._tbox
+
+
     def on_register_events(self):
         self.followup_questions = self.chat_control.chat_suggestion.examples
         self.followup_questions_ui = self.chat_control.chat_suggestion.accordion
+
+        self.chat_control.conversation.select(
+            fn=self.load_conv_to_textbox,
+            inputs=[self.chat_control.conversation],
+            outputs=[self._tbox]
+        )
+
+        self._tb.select(
+            fn=self.load_conv_to_textbox,
+            inputs=[self.chat_control.conversation],
+            outputs=[self._tbox]
+        )
 
         chat_event = (
             gr.on(
@@ -373,6 +438,10 @@ class ChatPage(BasePage):
                     self.chat_control.conversation_rn,
                 ],
                 show_progress="hidden",
+            ).then(
+                fn=self.load_conv_to_textbox,
+                inputs=[self.chat_control.conversation],
+                outputs=[self._tbox],
             )
         )
 
