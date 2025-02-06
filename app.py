@@ -15,7 +15,7 @@ from ktem.main import App  # noqa
 app = App()
 demo = app.make()
 demo.queue().launch(
-    favicon_path=app._favicon,
+    favicon_path="libs/ktem/ktem/assets/img/oxfavicon.png",
     inbrowser=True,
     allowed_paths=[
         "libs/ktem/ktem/assets",

@@ -229,8 +229,11 @@ class AnswerWithInlineCitation(AnswerWithContextPipeline):
             messages.append(SystemMessage(content=self.system_prompt))
 
         for human, ai in history[-self.n_last_interactions :]:
-            messages.append(HumanMessage(content=human))
-            messages.append(AIMessage(content=ai))
+            # Add validation to ensure content is not None
+            if human is not None and isinstance(human, str):
+                messages.append(HumanMessage(content=human))
+            if ai is not None and isinstance(ai, str):
+                messages.append(AIMessage(content=ai))
 
         if self.use_multimodal and evidence_mode == EVIDENCE_MODE_FIGURE:
             # create image message:

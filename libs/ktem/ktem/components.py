@@ -4,6 +4,7 @@ import logging
 from functools import cache
 from pathlib import Path
 from typing import Optional
+from decouple import config
 
 from theflow.settings import settings
 from theflow.utils.modules import deserialize
@@ -48,9 +49,27 @@ class ModelPool:
         self._cost: list[str] = []
         self._default: list[str] = []
 
+        # Get default provider from environment with fallback logic
+        default_provider = None
+        openai_api_key = config("OPENAI_API_KEY", default="")
+        local_model = config("LOCAL_MODEL", default="")
+        local_embeddings = config("LOCAL_MODEL_EMBEDDINGS", default="")
+
+        if category.lower() == "llm":
+            if openai_api_key:
+                default_provider = "openai"
+            elif local_model:
+                default_provider = "ollama"
+        elif category.lower() == "embeddings":
+            if openai_api_key:
+                default_provider = "openai"
+            elif local_embeddings:
+                default_provider = "ollama"
+
         for name, model in conf.items():
             self._models[name] = deserialize(model["spec"], safe=False)
-            if model.get("default", False):
+            # Set as default if specified in env or in config
+            if model.get("default", False) or (default_provider and name == default_provider):
                 self._default.append(name)
 
         self._accuracy = list(

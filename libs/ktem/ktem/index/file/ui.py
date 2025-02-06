@@ -691,7 +691,7 @@ class FileIndexPage(BasePage):
 
         try:
             # quick file upload event registration of first Index only
-            if self._index.id == 1:
+            if self._index.id == 1 and not flowsettings.KH_REMOVE_QUICK_UPLOAD_BOX:
                 self.quick_upload_state = gr.State(value=[])
                 print("Setting up quick upload event")
 
@@ -1539,14 +1539,28 @@ class FileSelector(BasePage):
             for result in results:
                 item = result[0]
                 options.append(
-                    (f"group: '{item.name}'", json.dumps(item.data.get("files", [])))
+                    (f"group: '{item.name}'", tuple(item.data.get("files", [])))
                 )
 
         if selected_files:
-            available_ids_set = set(available_ids)
-            selected_files = [
-                each for each in selected_files if each in available_ids_set
-            ]
+            available_ids_set = set(str(id) for id in available_ids)
+            filtered_files = []
+            
+            for item in selected_files:
+                if isinstance(item, (list, tuple)):
+                    # For groups, filter each file ID in the group
+                    valid_group_files = [
+                        str(file_id) for file_id in item 
+                        if str(file_id) in available_ids_set
+                    ]
+                    if valid_group_files:
+                        filtered_files.extend(valid_group_files)
+                else:
+                    # For single files, just check if it's available
+                    if str(item) in available_ids_set:
+                        filtered_files.append(str(item))
+            
+            selected_files = filtered_files
 
         return gr.update(value=selected_files, choices=options), options
 

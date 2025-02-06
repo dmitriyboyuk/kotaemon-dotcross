@@ -320,14 +320,14 @@ class LightRAGIndexingPipeline(GraphRAGIndexingPipeline):
         for doc_id in range(0, len(all_docs), INDEX_BATCHSIZE):
             cur_docs = all_docs[doc_id : doc_id + INDEX_BATCHSIZE]
             combined_doc = "\n".join(cur_docs)
-
+            
             graphrag_func.insert(combined_doc)
             process_doc_count += len(cur_docs)
             yield Document(
                 channel="debug",
                 text=(
-                    f"[GraphRAG] Indexed {process_doc_count} "
-                    f"/ {total_docs} documents."
+                f"[GraphRAG] Indexed {process_doc_count} "
+                f"/ {total_docs} documents."
                 ),
             )
 

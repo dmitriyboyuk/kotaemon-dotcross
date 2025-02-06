@@ -31,6 +31,7 @@ from .control import ConversationControl
 from .report import ReportIssue
 
 KH_WEB_SEARCH_BACKEND = getattr(flowsettings, "KH_WEB_SEARCH_BACKEND", None)
+KH_REMOVE_QUICK_UPLOAD_BOX = getattr(flowsettings, "KH_REMOVE_QUICK_UPLOAD_BOX", False)
 WebSearch = None
 if KH_WEB_SEARCH_BACKEND:
     try:
@@ -115,6 +116,8 @@ class ChatPage(BasePage):
     def __init__(self, app):
         self._app = app
         self._indices_input = []
+        self._tb = None
+        self._tbox = None
 
         self.on_building_ui()
 
@@ -122,10 +125,11 @@ class ChatPage(BasePage):
         self._reasoning_type = gr.State(value=None)
         self._conversation_renamed = gr.State(value=False)
         self._use_suggestion = gr.State(
-            value=getattr(flowsettings, "KH_FEATURE_CHAT_SUGGESTION", False)
+            value=getattr(flowsettings, "KH_FEATURE_CHAT_SUGGESTION", True)
         )
         self._info_panel_expanded = gr.State(value=True)
         self._command_state = gr.State(value=None)
+        # self._notes = gr.State(value=None)
 
     def on_building_ui(self):
         with gr.Row():
@@ -171,23 +175,24 @@ class ChatPage(BasePage):
                                 self._indices_input.append(gr_index)
                         setattr(self, f"_index_{index.id}", index_ui)
 
-                if len(self._app.index_manager.indices) > 0:
-                    with gr.Accordion(label="Quick Upload") as _:
-                        self.quick_file_upload = File(
-                            file_types=list(KH_DEFAULT_FILE_EXTRACTORS.keys()),
-                            file_count="multiple",
-                            container=True,
-                            show_label=False,
-                            elem_id="quick-file",
-                        )
-                        self.quick_urls = gr.Textbox(
-                            placeholder="Or paste URLs here",
-                            lines=1,
-                            container=False,
-                            show_label=False,
-                            elem_id="quick-url",
-                        )
-                        self.quick_file_upload_status = gr.Markdown()
+                if not KH_REMOVE_QUICK_UPLOAD_BOX:
+                    if len(self._app.index_manager.indices) > 0:
+                        with gr.Accordion(label="Quick Upload") as _:
+                            self.quick_file_upload = File(
+                                file_types=list(KH_DEFAULT_FILE_EXTRACTORS.keys()),
+                                file_count="multiple",
+                                container=True,
+                                show_label=False,
+                                elem_id="quick-file",
+                            )
+                            self.quick_urls = gr.Textbox(
+                                placeholder="Or paste URLs here",
+                                lines=1,
+                                container=False,
+                                show_label=False,
+                                elem_id="quick-url",
+                            )
+                            self.quick_file_upload_status = gr.Markdown()
 
                 self.report_issue = ReportIssue(self._app)
 
@@ -243,6 +248,7 @@ class ChatPage(BasePage):
                                 label="Chat suggestion",
                                 container=False,
                                 elem_id="use-suggestion-checkbox",
+                                value=True  # Set checkbox to be selected by default
                             )
 
                             self.citation = gr.Dropdown(
@@ -269,12 +275,24 @@ class ChatPage(BasePage):
             with gr.Column(
                 scale=INFO_PANEL_SCALES[False], elem_id="chat-info-panel"
             ) as self.info_column:
-                with gr.Accordion(
-                    label="Information panel", open=True, elem_id="info-expand"
-                ):
-                    self.modal = gr.HTML("<div id='pdf-modal'></div>")
-                    self.plot_panel = gr.Plot(visible=False)
-                    self.info_panel = gr.HTML(elem_id="html-info-panel")
+                with gr.Tabs():
+                    with gr.Tab("Sources"):
+                        with gr.Accordion(
+                            label="Information panel", open=True, elem_id="info-expand"
+                        ):
+                            self.modal = gr.HTML("<div id='pdf-modal'></div>")
+                            self.plot_panel = gr.Plot(visible=False)
+                            self.info_panel = gr.HTML(elem_id="html-info-panel")
+
+                    with gr.Tab("Notes") as self._tb:
+                        self._tbox = gr.TextArea(
+                            label="Summary",
+                            # value="## HI",
+                            lines=18,
+                            elem_id="summary-tbox",
+                            interactive=True,
+                        )                        
+
 
     def _json_to_plot(self, json_dict: dict | None):
         if json_dict:
@@ -284,9 +302,59 @@ class ChatPage(BasePage):
             plot = gr.update(visible=False)
         return plot
 
+    def load_conv_to_textbox(self, conversation_id):
+        from ktem.llms.manager import llms
+        from kotaemon.base.schema import AIMessage, HumanMessage, SystemMessage
+
+        print(f"{conversation_id=}")
+        conv = self.chat_control.load_chat_history_messages(
+            conversation_id=conversation_id,
+        )
+
+        summarize_prompt = """
+        You are a helpful assistant that summarizes text.
+        The input to this task is a section of a document.
+        The output is a summary of the section, structured by atomic paragraphs.
+        Chat history:
+        """
+
+        chat_history = "\n".join([
+            "\n".join(
+                [f"Human: {h}", f"Assistant: {a}"]
+            ) for h, a in conv.data_source["messages"]
+        ])
+        print(f"{chat_history=}")
+        messages = [
+            SystemMessage(content=summarize_prompt),
+            HumanMessage(content=chat_history)
+        ] 
+        llm = llms.get_default()
+        response = llm(messages).content
+
+        self._tbox = gr.TextArea(
+            value=response,
+            # value=chat_history,
+            interactive=True,
+        )
+
+        return self._tbox
+
+
     def on_register_events(self):
         self.followup_questions = self.chat_control.chat_suggestion.examples
         self.followup_questions_ui = self.chat_control.chat_suggestion.accordion
+
+        self.chat_control.conversation.select(
+            fn=self.load_conv_to_textbox,
+            inputs=[self.chat_control.conversation],
+            outputs=[self._tbox]
+        )
+
+        self._tb.select(
+            fn=self.load_conv_to_textbox,
+            inputs=[self.chat_control.conversation],
+            outputs=[self._tbox]
+        )
 
         chat_event = (
             gr.on(
@@ -371,6 +439,10 @@ class ChatPage(BasePage):
                     self.chat_control.conversation_rn,
                 ],
                 show_progress="hidden",
+            ).then(
+                fn=self.load_conv_to_textbox,
+                inputs=[self.chat_control.conversation],
+                outputs=[self._tbox],
             )
         )
 
@@ -439,12 +511,12 @@ class ChatPage(BasePage):
         )
         self.chat_control.btn_new.click(
             self.chat_control.new_conv,
-            inputs=self._app.user_id,
+            inputs=[self._app.user_id],
             outputs=[self.chat_control.conversation_id, self.chat_control.conversation],
             show_progress="hidden",
         ).then(
             self.chat_control.select_conv,
-            inputs=[self.chat_control.conversation, self._app.user_id],
+            inputs=[self.chat_control.conversation_id, self._app.user_id],
             outputs=[
                 self.chat_control.conversation_id,
                 self.chat_control.conversation,
@@ -457,17 +529,8 @@ class ChatPage(BasePage):
                 self.state_plot_history,
                 self.chat_control.cb_is_public,
                 self.state_chat,
-            ]
-            + self._indices_input,
+            ] + self._indices_input,
             show_progress="hidden",
-        ).then(
-            fn=self._json_to_plot,
-            inputs=self.state_plot_panel,
-            outputs=self.plot_panel,
-        ).then(
-            fn=None,
-            inputs=None,
-            js=chat_input_focus_js,
         )
 
         self.chat_control.btn_del.click(

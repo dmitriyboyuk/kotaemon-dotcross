@@ -3,6 +3,7 @@ import glob
 import logging
 import os
 import re
+import json
 from pathlib import Path
 from typing import Generator
 
@@ -315,14 +316,14 @@ class NanoGraphRAGIndexingPipeline(GraphRAGIndexingPipeline):
         for doc_id in range(0, len(all_docs), INDEX_BATCHSIZE):
             cur_docs = all_docs[doc_id : doc_id + INDEX_BATCHSIZE]
             combined_doc = "\n".join(cur_docs)
-
+            
             graphrag_func.insert(combined_doc)
             process_doc_count += len(cur_docs)
             yield Document(
                 channel="debug",
                 text=(
                     f"[GraphRAG] Indexed {process_doc_count} "
-                    f"/ {total_docs} documents."
+                f"/ {total_docs} documents."
                 ),
             )
 
@@ -363,7 +364,19 @@ class NanoGraphRAGRetrieverPipeline(BaseFileIndexRetriever):
         }
 
     def _build_graph_search(self):
+        if not self.file_ids or self.file_ids[0] == ['disabled', [], -1]:
+            return None, None
+
         file_id = self.file_ids[0]
+        
+        # Handle JSON string case
+        if isinstance(file_id, str):
+            try:
+                parsed = json.loads(file_id)
+                if isinstance(parsed, list) and len(parsed) > 0:
+                    file_id = parsed[0]  # Take the first file ID from the list
+            except json.JSONDecodeError:
+                pass  # Keep original file_id if it's not valid JSON
 
         # retrieve the graph_id from the index
         with Session(engine) as session:
@@ -449,6 +462,9 @@ class NanoGraphRAGRetrieverPipeline(BaseFileIndexRetriever):
             return []
 
         graphrag_func, query_params = self._build_graph_search()
+        
+        if graphrag_func is None:
+            return []
 
         # only local mode support graph visualization
         if query_params.mode == "local":

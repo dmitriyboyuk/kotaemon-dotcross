@@ -1,16 +1,21 @@
 import gradio as gr
 from decouple import config
 from ktem.app import BaseApp
+from ktem.settings import SettingItem
 from ktem.pages.chat import ChatPage
 from ktem.pages.help import HelpPage
+from ktem.pages.about import AboutPage
 from ktem.pages.resources import ResourcesTab
 from ktem.pages.settings import SettingsPage
 from ktem.pages.setup import SetupPage
 from theflow.settings import settings as flowsettings
+import os
 
 KH_DEMO_MODE = getattr(flowsettings, "KH_DEMO_MODE", False)
 KH_ENABLE_FIRST_SETUP = getattr(flowsettings, "KH_ENABLE_FIRST_SETUP", False)
 KH_APP_DATA_EXISTS = getattr(flowsettings, "KH_APP_DATA_EXISTS", True)
+KH_REMOVE_HELP_TAB = getattr(flowsettings, "KH_REMOVE_HELP_TAB", False)
+KH_ADD_ABOUT_TAB = getattr(flowsettings, "KH_ADD_ABOUT_TAB", False)
 
 # override first setup setting
 if config("KH_FIRST_SETUP", default=False, cast=bool):
@@ -37,6 +42,43 @@ class App(BaseApp):
         - Subscribe public events
         - Register events
     """
+
+    def __init__(self):
+        super().__init__()
+        
+        # Determine default providers with fallback logic
+        openai_api_key = config("OPENAI_API_KEY", default="")
+        default_llm = "openai" if openai_api_key else "ollama"
+        default_embedding = "openai" if openai_api_key else "ollama"
+        
+        # Add feedback settings to the application settings using flowsettings values
+        self.default_settings.application.settings.update({
+            "feedback.correctness_label": SettingItem(
+                name="Feedback Correctness Label",
+                value=flowsettings.KH_FEEDBACK_CORRECTNESS_LABEL,
+                component="text"
+            ),
+            "feedback.correct_label": SettingItem(
+                name="Correct Feedback Label",
+                value=flowsettings.KH_FEEDBACK_CORRECT,
+                component="text"
+            ),
+            "feedback.incorrect_label": SettingItem(
+                name="Incorrect Feedback Label",
+                value=flowsettings.KH_FEEDBACK_INCORRECT,
+                component="text"
+            ),
+            "llm.provider": SettingItem(
+                name="Default LLM Provider",
+                value=default_llm,
+                component="text"
+            ),
+            "embeddings.provider": SettingItem(
+                name="Default Embeddings Provider",
+                value=default_embedding,
+                component="text"
+            ),
+        })
 
     def ui(self):
         """Render the UI"""
@@ -76,7 +118,7 @@ class App(BaseApp):
                         setattr(self, f"_index_{index.id}", page)
             elif len(self.index_manager.indices) > 1:
                 with gr.Tab(
-                    "Files",
+                    flowsettings.KH_RENAME_UI_FILES_TAB,
                     elem_id="indices-tab",
                     elem_classes=["fill-main-area-height", "scrollable", "indices-tab"],
                     id="indices-tab",
@@ -108,14 +150,30 @@ class App(BaseApp):
             ) as self._tabs["settings-tab"]:
                 self.settings_page = SettingsPage(self)
 
+            # if not KH_REMOVE_HELP_TAB:
             with gr.Tab(
-                "Help",
+                # "Help",
+                "About",
                 elem_id="help-tab",
                 id="help-tab",
                 visible=not self.f_user_management,
                 elem_classes=["fill-main-area-height", "scrollable"],
             ) as self._tabs["help-tab"]:
-                self.help_page = HelpPage(self)
+                # self.help_page = HelpPage(self)
+                self.help_page = AboutPage(self)
+
+            # if KH_ADD_ABOUT_TAB:
+            #     with gr.Tab(
+            #         "About",
+            #         elem_id="help-tab",
+            #         id="help-tab",
+            #         # elem_id="about-tab",
+            #     # id="about-tab",
+            #         visible=not self.f_user_management,
+            #         elem_classes=["fill-main-area-height", "scrollable"],
+            #     # ) as self._tabs["about-tab"]:
+            #     ) as self._tabs["help-tab"]:
+            #         self.about_page = AboutPage(self)
 
         if KH_ENABLE_FIRST_SETUP:
             with gr.Column(visible=False) as self.setup_page_wrapper:

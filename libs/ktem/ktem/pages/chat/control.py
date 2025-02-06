@@ -4,7 +4,7 @@ from copy import deepcopy
 
 import gradio as gr
 from ktem.app import BasePage
-from ktem.db.models import Conversation, User, engine
+from ktem.db.models import Conversation, User, engine#, Notes
 from sqlmodel import Session, or_, select
 
 import flowsettings
@@ -39,7 +39,7 @@ class ConversationControl(BasePage):
 
     def on_building_ui(self):
         with gr.Row():
-            conversation_title = "Conversations" if not flowsettings.KH_RENAME_UI else "Report Explorations"
+            conversation_title = flowsettings.KH_RENAME_UI_CONVERSATIONS or "Conversations" 
             gr.Markdown(
                 f"## {conversation_title}"
             )
@@ -204,11 +204,20 @@ class ConversationControl(BasePage):
 
     def new_conv(self, user_id):
         """Create new chat"""
+        print("Creating new conversation for user:", user_id)  # Add this debug line
         if user_id is None:
             gr.Warning("Please sign in first (Settings → User Settings)")
             return None, gr.update()
         with Session(engine) as session:
             new_conv = Conversation(user=user_id)
+            # Initialize with welcome message and ensure chat suggestions are visible
+            new_conv.data_source = {
+                "messages": [[None, "Hi, what would you like to know?"]],
+                "retrieval_messages": [""],
+                "plot_history": [None],
+                "state": STATE,
+                "chat_suggestions_visible": True  # Explicitly set suggestions visibility
+            }
             session.add(new_conv)
             session.commit()
 
@@ -216,6 +225,7 @@ class ConversationControl(BasePage):
 
         history = self.load_chat_history(user_id)
 
+        # Update both conversation ID and ensure suggestions are visible
         return id_, gr.update(value=id_, choices=history)
 
     def delete_conv(self, conversation_id, user_id):
@@ -244,6 +254,35 @@ class ConversationControl(BasePage):
 
     def select_conv(self, conversation_id, user_id):
         """Select the conversation"""
+        # print("Selecting conversation:", conversation_id)  # Debug line commented out
+        # Calculate total number of index outputs needed
+        total_index_outputs = 0
+        for index in self._app.index_manager.indices:
+            if index.selector is None:
+                continue
+            if isinstance(index.selector, tuple):
+                total_index_outputs += len(index.selector)
+            else:
+                total_index_outputs += 1
+
+        if not conversation_id:
+            # Initialize with welcome message for new conversations
+            default_outputs = [gr.update() for _ in range(total_index_outputs)]
+            return (
+                None,  # conversation_id
+                gr.update(),  # conversation
+                gr.update(),  # conversation_rn
+                [[None, "Hi, what would you like to know?"]],  # chatbot
+                [],  # followup_questions
+                "",  # info_panel
+                None,  # state_plot_panel
+                [],  # state_retrieval_history
+                [],  # state_plot_history
+                False,  # cb_is_public
+                {"app": {"regen": False}},  # state_chat
+                *default_outputs  # indices_input
+            )
+
         with Session(engine) as session:
             statement = select(Conversation).where(Conversation.id == conversation_id)
             try:
@@ -293,29 +332,36 @@ class ConversationControl(BasePage):
                 state = STATE
                 is_conv_public = False
 
+        # Build indices outputs with correct number of values
         indices = []
         for index in self._app.index_manager.indices:
-            # assume that the index has selector
             if index.selector is None:
                 continue
-            if isinstance(index.selector, int):
-                indices.append(selected.get(str(index.id), index.default_selector))
             if isinstance(index.selector, tuple):
-                indices.extend(selected.get(str(index.id), index.default_selector))
+                selected_values = selected.get(str(index.id), index.default_selector)
+                if not isinstance(selected_values, list):
+                    selected_values = [selected_values] * len(index.selector)
+                indices.extend(selected_values)
+            else:
+                indices.append(selected.get(str(index.id), index.default_selector))
+
+        # Ensure we have exactly the right number of indices outputs
+        while len(indices) < total_index_outputs:
+            indices.append(gr.update())
 
         return (
-            id_,
-            id_,
-            name,
-            chats,
-            chat_suggestions,
-            info_panel,
-            plot_data,
-            retrieval_history,
-            plot_history,
-            is_conv_public,
-            state,
-            *indices,
+            id_,  # conversation_id
+            id_,  # conversation
+            name,  # conversation_rn
+            chats,  # chatbot
+            chat_suggestions,  # followup_questions
+            info_panel,  # info_panel
+            plot_data,  # state_plot_panel
+            retrieval_history,  # state_retrieval_history
+            plot_history,  # state_plot_history
+            is_conv_public,  # cb_is_public
+            state,  # state_chat
+            *indices,  # indices_input
         )
 
     def rename_conv(self, conversation_id, new_name, is_renamed, user_id):
@@ -387,8 +433,76 @@ class ConversationControl(BasePage):
 
     def _on_app_created(self):
         """Reload the conversation once the app is created"""
+        # First load the conversation list
         self._app.app.load(
             self.reload_conv,
             inputs=[self._app.user_id],
             outputs=[self.conversation],
         )
+        
+        # Get all index components that need to be updated
+        index_outputs = []
+        for index in self._app.index_manager.indices:
+            if index.selector is None:
+                continue
+            if isinstance(index.selector, tuple):
+                for _ in index.selector:
+                    index_outputs.append(getattr(self._app.chat_page, f"_index_{index.id}").selector)
+            else:
+                index_outputs.append(getattr(self._app.chat_page, f"_index_{index.id}").selector)
+        
+        # Then initialize the empty state with welcome message
+        self._app.app.load(
+            self.select_conv,
+            inputs=[gr.State(value=""), self._app.user_id],
+            outputs=[
+                self.conversation_id,
+                self.conversation,
+                self.conversation_rn,
+                self._app.chat_page.chat_panel.chatbot,
+                self.chat_suggestion.examples,
+                self._app.chat_page.info_panel,
+                self._app.chat_page.state_plot_panel,
+                self._app.chat_page.state_retrieval_history,
+                self._app.chat_page.state_plot_history,
+                self.cb_is_public,
+                self._app.chat_page.state_chat,
+                *index_outputs
+            ],
+        )
+
+    def load_chat_history_messages(self, conversation_id):
+        with Session(engine) as session:
+            statement = select(Conversation).where(Conversation.id == conversation_id)
+            result = session.exec(statement).one()
+        return result
+
+
+    ## TODO:
+    # def create_notes(self, conversation_id):
+    #     with Session(engine) as session:
+    #         notes = Notes(
+    #             conversation_id=conversation_id,
+    #             notes=None,
+    #         )
+    #         session.add(notes)
+    #         session.commit()
+    #         return notes
+
+    # def get_notes(self, conversation_id):
+    #     with Session(engine) as session:
+    #         statement = select(Notes).where(Notes.conversation_id == conversation_id)
+    #         result = session.exec(statement).one()
+    #         if not result:
+    #             result = self.create_notes(conversation_id)
+    #         return result.get("notes", [])
+
+    # def edit_notes(self, conversation_id, notes):
+    #     with Session(engine) as session:
+    #         statement = select(Notes).where(Notes.conversation_id == conversation_id)
+    #         result = session.exec(statement).one()
+    #         result.notes = notes
+    #         session.add(result)
+    #         session.commit()
+
+    #         return notes
