@@ -17,7 +17,7 @@ class SuggestFollowupQuesPipeline(BaseComponent):
         "your task is to generate 3 to 5 relevant follow-up questions. "
         "These questions should be simple, clear, "
         "and designed to guide the conversation further. "
-        "Ensure that the questions are open-ended to encourage detailed responses. "
+        "If the chat is medically related, then the user is a doctor doing treatment review. Help the doctor to query the patient data in order to provide the best treatment plan."
         "Respond in JSON format with 'questions' key. "
         "Answer using the language {lang} same as the question. "
         "If the question uses Chinese, the answer should be in Chinese.\n"
@@ -37,9 +37,16 @@ class SuggestFollowupQuesPipeline(BaseComponent):
 
         messages = []
         for human, ai in chat_history[-3:]:
-            messages.append(HumanMessage(content=human))
-            messages.append(AIMessage(content=ai))
+            # Skip None or empty messages
+            if human:  # Only add if human message exists
+                messages.append(HumanMessage(content=human))
+            if ai:  # Only add if AI message exists
+                messages.append(AIMessage(content=ai))
 
+        # If no messages were added, start with a default prompt
+        if not messages:
+            messages.append(HumanMessage(content="Let's start a new conversation."))
+            
         messages.append(HumanMessage(content=prompt))
 
         return self.llm(messages)

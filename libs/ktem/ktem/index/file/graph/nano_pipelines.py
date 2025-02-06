@@ -364,6 +364,9 @@ class NanoGraphRAGRetrieverPipeline(BaseFileIndexRetriever):
         }
 
     def _build_graph_search(self):
+        if not self.file_ids or self.file_ids[0] == ['disabled', [], -1]:
+            return None, None
+
         file_id = self.file_ids[0]
         
         # Handle JSON string case
@@ -459,6 +462,9 @@ class NanoGraphRAGRetrieverPipeline(BaseFileIndexRetriever):
             return []
 
         graphrag_func, query_params = self._build_graph_search()
+        
+        if graphrag_func is None:
+            return []
 
         # only local mode support graph visualization
         if query_params.mode == "local":

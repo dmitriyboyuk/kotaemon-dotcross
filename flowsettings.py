@@ -7,29 +7,30 @@ import dotenv
 from decouple import AutoConfig, Config, RepositoryEnv
 from ktem.utils.lang import SUPPORTED_LANGUAGE_MAP
 
-print("\n=== Debug - Environment Setup ===")
-print("Current working directory:", os.getcwd())
-print("Environment files in directory:")
-for file in os.listdir():
-    if file.startswith('.env'):
-        print(f"Found: {file}")
+# Debug prints commented out
+# print("\n=== Debug - Environment Setup ===")
+# print("Current working directory:", os.getcwd())
+# print("Environment files in directory:")
+# for file in os.listdir():
+#     if file.startswith('.env'):
+#         print(f"Found: {file}")
 env_path = os.path.join(os.getcwd(), '.env')
-print(f"Using .env file at: {env_path}")
+# print(f"Using .env file at: {env_path}")
 
 # Load environment variables directly using python-dotenv
 dotenv.load_dotenv(env_path, override=True)
 
-print("Environment file contents:")
-with open(env_path, 'r') as f:
-    for line in f:
-        if 'OPENAI' in line:
-            print(f"  {line.strip()}")
+# print("Environment file contents:")
+# with open(env_path, 'r') as f:
+#     for line in f:
+#         if 'OPENAI' in line:
+#             print(f"  {line.strip()}")
 
-print("\nEnvironment variables after loading:")
-for key in os.environ:
-    if 'OPENAI' in key:
-        value = os.environ[key]
-        print(f"  {key} = {value[:10]}..." if 'KEY' in key else f"  {key} = {value}")
+# print("\nEnvironment variables after loading:")
+# for key in os.environ:
+#     if 'OPENAI' in key:
+#         value = os.environ[key]
+#         print(f"  {key} = {value[:10]}..." if 'KEY' in key else f"  {key} = {value}")
 
 # Force python-decouple to use our specific .env file
 config = Config(RepositoryEnv(env_path))
@@ -52,12 +53,12 @@ OPENAI_API_BASE = config('OPENAI_API_BASE', default='https://api.openai.com/v1')
 OPENAI_CHAT_MODEL = config('OPENAI_CHAT_MODEL', default='gpt-4o-mini')
 OPENAI_EMBEDDINGS_MODEL = config('OPENAI_EMBEDDINGS_MODEL', default='text-embedding-ada-002')
 
-print("\n=== Debug - OpenAI Settings ===")
-print(f"OPENAI_API_KEY = {OPENAI_API_KEY[:10]}...")
-print(f"OPENAI_API_BASE = {OPENAI_API_BASE}")
-print(f"OPENAI_CHAT_MODEL = {OPENAI_CHAT_MODEL}")
-print(f"OPENAI_EMBEDDINGS_MODEL = {OPENAI_EMBEDDINGS_MODEL}")
-print("===============================\n")
+# print("\n=== Debug - OpenAI Settings ===")
+# print(f"OPENAI_API_KEY = {OPENAI_API_KEY[:10]}...")
+# print(f"OPENAI_API_BASE = {OPENAI_API_BASE}")
+# print(f"OPENAI_CHAT_MODEL = {OPENAI_CHAT_MODEL}")
+# print(f"OPENAI_EMBEDDINGS_MODEL = {OPENAI_EMBEDDINGS_MODEL}")
+# print("===============================\n")
 
 # Set OpenAI environment variables explicitly
 os.environ['OPENAI_API_KEY'] = OPENAI_API_KEY
@@ -65,16 +66,16 @@ os.environ['OPENAI_API_BASE'] = OPENAI_API_BASE
 os.environ['OPENAI_CHAT_MODEL'] = OPENAI_CHAT_MODEL
 os.environ['OPENAI_EMBEDDINGS_MODEL'] = OPENAI_EMBEDDINGS_MODEL
 
-print("=== Debug - Environment Variables After Setting ===")
-for key in os.environ:
-    if 'OPENAI' in key:
-        value = os.environ[key]
-        print(f"  {key} = {value[:10]}..." if 'KEY' in key else f"  {key} = {value}")
-print("===============================\n")
+# print("=== Debug - Environment Variables After Setting ===")
+# for key in os.environ:
+#     if 'OPENAI' in key:
+#         value = os.environ[key]
+#         print(f"  {key} = {value[:10]}..." if 'KEY' in key else f"  {key} = {value}")
+# print("===============================\n")
 
 # Configure OpenAI LLM settings
-print("\n=== Debug - Configuring OpenAI LLM Settings ===")
-print(f"Using API key: {OPENAI_API_KEY[:10]}...")
+# print("\n=== Debug - Configuring OpenAI LLM Settings ===")
+# print(f"Using API key: {OPENAI_API_KEY[:10]}...")
 
 # Add our OpenAI settings
 KH_LLMS["openai"] = {
@@ -101,23 +102,23 @@ KH_EMBEDDINGS["openai"] = {
     "default": True,
 }
 
-print("OpenAI LLM and Embeddings settings configured with API key")
-print("Current OpenAI LLM settings:")
-print(f"  API Key: {KH_LLMS['openai']['spec']['api_key'][:10]}...")
-print(f"  Base URL: {KH_LLMS['openai']['spec']['base_url']}")
-print(f"  Model: {KH_LLMS['openai']['spec']['model']}")
-print(f"  Temperature: {KH_LLMS['openai']['spec']['temperature']}")
-print(f"  Timeout: {KH_LLMS['openai']['spec']['timeout']}")
-print("===============================\n")
+# print("OpenAI LLM and Embeddings settings configured with API key")
+# print("Current OpenAI LLM settings:")
+# print(f"  API Key: {KH_LLMS['openai']['spec']['api_key'][:10]}...")
+# print(f"  Base URL: {KH_LLMS['openai']['spec']['base_url']}")
+# print(f"  Model: {KH_LLMS['openai']['spec']['model']}")
+# print(f"  Temperature: {KH_LLMS['openai']['spec']['temperature']}")
+# print(f"  Timeout: {KH_LLMS['openai']['spec']['timeout']}")
+# print("===============================\n")
 
 # Configure other LLM settings
 if config("LOCAL_MODEL", default=""):
-    print("\n=== Debug - Configuring Ollama Settings ===")
+    # print("\n=== Debug - Configuring Ollama Settings ===")
     local_model = config("LOCAL_MODEL", default="deepseek-r1:1.5b")
     local_embeddings_model = config("LOCAL_MODEL_EMBEDDINGS", default="nomic-embed-text")
-    print(f"Local Model: {local_model}")
-    print(f"Local Embeddings Model: {local_embeddings_model}")
-    print(f"Ollama URL: {KH_OLLAMA_URL}")
+    # print(f"Local Model: {local_model}")
+    # print(f"Local Embeddings Model: {local_embeddings_model}")
+    # print(f"Ollama URL: {KH_OLLAMA_URL}")
     
     KH_LLMS["ollama"] = {
         "spec": {
@@ -137,22 +138,22 @@ if config("LOCAL_MODEL", default=""):
         },
         "default": False,
     }
-    print("Ollama settings configured")
-    print("===============================\n")
+    # print("Ollama settings configured")
+    # print("===============================\n")
 
 # Configure Azure OpenAI if enabled
 if config("AZURE_OPENAI_API_KEY", default="") and config("AZURE_OPENAI_ENDPOINT", default=""):
-    print("\n=== Debug - Configuring Azure OpenAI Settings ===")
+    # print("\n=== Debug - Configuring Azure OpenAI Settings ===")
     azure_endpoint = config("AZURE_OPENAI_ENDPOINT", default="")
     azure_api_key = config("AZURE_OPENAI_API_KEY", default="")
     azure_api_version = config("OPENAI_API_VERSION", default="") or "2024-02-15-preview"
     azure_chat_deployment = config("AZURE_OPENAI_CHAT_DEPLOYMENT", default="")
     azure_embeddings_deployment = config("AZURE_OPENAI_EMBEDDINGS_DEPLOYMENT", default="")
     
-    print(f"Azure Endpoint: {azure_endpoint}")
-    print(f"Azure API Version: {azure_api_version}")
-    print(f"Azure Chat Deployment: {azure_chat_deployment}")
-    print(f"Azure Embeddings Deployment: {azure_embeddings_deployment}")
+    # print(f"Azure Endpoint: {azure_endpoint}")
+    # print(f"Azure API Version: {azure_api_version}")
+    # print(f"Azure Chat Deployment: {azure_chat_deployment}")
+    # print(f"Azure Embeddings Deployment: {azure_embeddings_deployment}")
     
     if azure_chat_deployment:
         KH_LLMS["azure"] = {
@@ -179,20 +180,20 @@ if config("AZURE_OPENAI_API_KEY", default="") and config("AZURE_OPENAI_ENDPOINT"
             },
             "default": False,
         }
-    print("Azure OpenAI settings configured")
-    print("===============================\n")
+    # print("Azure OpenAI settings configured")
+    # print("===============================\n")
 
-print("\n=== Debug - Final LLM Configuration ===")
-print("Available LLMs:", list(KH_LLMS.keys()))
-print("Default LLM:", next((k for k, v in KH_LLMS.items() if v.get("default")), None))
-for llm_name, llm_config in KH_LLMS.items():
-    print(f"\n{llm_name} configuration:")
-    for key, value in llm_config["spec"].items():
-        if 'api_key' in key:
-            print(f"  {key}: {value[:10]}...")
-        else:
-            print(f"  {key}: {value}")
-print("===============================\n")
+# print("\n=== Debug - Final LLM Configuration ===")
+# print("Available LLMs:", list(KH_LLMS.keys()))
+# print("Default LLM:", next((k for k, v in KH_LLMS.items() if v.get("default")), None))
+# for llm_name, llm_config in KH_LLMS.items():
+#     print(f"\n{llm_name} configuration:")
+#     for key, value in llm_config["spec"].items():
+#         if 'api_key' in key:
+#             print(f"  {key}: {value[:10]}...")
+#         else:
+#             print(f"  {key}: {value}")
+# print("===============================\n")
 
 # Import default settings after configuring our settings
 from theflow.settings.default import *  # noqa
@@ -383,7 +384,7 @@ KH_LLMS["cohere"] = {
     "default": False,
 }
 
-# additional embeddings configurations
+# Additional embeddings configurations
 KH_EMBEDDINGS["cohere"] = {
     "spec": {
         "__type__": "kotaemon.embeddings.LCCohereEmbeddings",

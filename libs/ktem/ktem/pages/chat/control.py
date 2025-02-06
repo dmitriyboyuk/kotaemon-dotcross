@@ -210,12 +210,13 @@ class ConversationControl(BasePage):
             return None, gr.update()
         with Session(engine) as session:
             new_conv = Conversation(user=user_id)
-            # Initialize with welcome message
+            # Initialize with welcome message and ensure chat suggestions are visible
             new_conv.data_source = {
                 "messages": [[None, "Hi, what would you like to know?"]],
                 "retrieval_messages": [""],
                 "plot_history": [None],
                 "state": STATE,
+                "chat_suggestions_visible": True  # Explicitly set suggestions visibility
             }
             session.add(new_conv)
             session.commit()
@@ -224,6 +225,7 @@ class ConversationControl(BasePage):
 
         history = self.load_chat_history(user_id)
 
+        # Update both conversation ID and ensure suggestions are visible
         return id_, gr.update(value=id_, choices=history)
 
     def delete_conv(self, conversation_id, user_id):
@@ -252,7 +254,7 @@ class ConversationControl(BasePage):
 
     def select_conv(self, conversation_id, user_id):
         """Select the conversation"""
-        print("Selecting conversation:", conversation_id)  # Add this debug line
+        # print("Selecting conversation:", conversation_id)  # Debug line commented out
         # Calculate total number of index outputs needed
         total_index_outputs = 0
         for index in self._app.index_manager.indices:

@@ -7,6 +7,7 @@ from sqlmodel import Session
 
 import flowsettings
 
+# Debug prints commented out
 # print("\n=== Debug - Feedback Settings ===")
 # print("Loading flowsettings module:", flowsettings.__file__)
 # print("Environment variables loaded in flowsettings:")
@@ -31,6 +32,7 @@ class ReportIssue(BasePage):
             sufficient_option = getattr(flowsettings, "KH_FEEDBACK_DATA_SUFFICIENT", "Sufficient")
             insufficient_option = getattr(flowsettings, "KH_FEEDBACK_DATA_INSUFFICIENT", "Insufficient")
 
+            # Debug prints commented out
             # print("\n=== Debug - Feedback UI Values ===")
             # print(f"Correctness Question: {correctness_label}")
             # print(f"Correctness Options: {correct_option}, {incorrect_option}")

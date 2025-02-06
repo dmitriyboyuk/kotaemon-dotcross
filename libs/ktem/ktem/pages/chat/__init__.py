@@ -125,7 +125,7 @@ class ChatPage(BasePage):
         self._reasoning_type = gr.State(value=None)
         self._conversation_renamed = gr.State(value=False)
         self._use_suggestion = gr.State(
-            value=getattr(flowsettings, "KH_FEATURE_CHAT_SUGGESTION", False)
+            value=getattr(flowsettings, "KH_FEATURE_CHAT_SUGGESTION", True)
         )
         self._info_panel_expanded = gr.State(value=True)
         self._command_state = gr.State(value=None)
@@ -248,6 +248,7 @@ class ChatPage(BasePage):
                                 label="Chat suggestion",
                                 container=False,
                                 elem_id="use-suggestion-checkbox",
+                                value=True  # Set checkbox to be selected by default
                             )
 
                             self.citation = gr.Dropdown(

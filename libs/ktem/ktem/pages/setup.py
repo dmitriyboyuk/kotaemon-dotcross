@@ -10,13 +10,14 @@ from ktem.llms.manager import llms
 from ktem.rerankings.manager import reranking_models_manager as rerankers
 from theflow.settings import settings as flowsettings
 
-print("\n=== Debug - Setup Environment ===")
-print("Current working directory:", os.getcwd())
-print("Environment variables from config:")
-for key in os.environ:
-    if 'KH_FEEDBACK' in key:
-        print(f"{key} = {os.environ[key]}")
-print("===============================\n")
+# Debug prints commented out
+# print("\n=== Debug - Setup Environment ===")
+# print("Current working directory:", os.getcwd())
+# print("Environment variables from config:")
+# for key in os.environ:
+#     if 'KH_FEEDBACK' in key:
+#         print(f"{key} = {os.environ[key]}")
+# print("===============================\n")
 
 KH_DEMO_MODE = getattr(flowsettings, "KH_DEMO_MODE", False)
 LOCAL_API_BASE = config("LOCAL_API_BASE", default="http://localhost:11434/v1/")
@@ -418,6 +419,35 @@ class SetupPage(BasePage):
         default_settings["index.options.1.reranking_llm"] = radio_model_value
         if radio_model_value == "ollama":
             default_settings["index.options.1.use_llm_reranking"] = False
+            
+        # Ensure chat suggestions are enabled and visible by default
+        default_settings["chat.suggestions.enabled"] = config('KH_FEATURE_CHAT_SUGGESTION', default=True, cast=bool)
+        default_settings["chat.suggestions.visible"] = True
+        default_settings["chat.suggestions.open"] = True
+        
+        # Try to load suggestions from environment
+        try:
+            raw_env_suggestions = config('KH_FEATURE_CHAT_SUGGESTION_SAMPLES')
+            if raw_env_suggestions:
+                suggestions = json.loads(raw_env_suggestions.strip())
+                if isinstance(suggestions, list) and all(isinstance(s, str) for s in suggestions):
+                    # Remove duplicates while preserving order
+                    seen = set()
+                    suggestions = [x for x in suggestions if not (x in seen or seen.add(x))]
+                    default_settings["chat.suggestions.samples"] = suggestions
+                    logger.info(f"Successfully loaded {len(suggestions)} suggestions from environment during setup")
+                else:
+                    logger.warning("Invalid suggestion format in environment, using defaults")
+                    raise ValueError("Invalid suggestion format")
+        except (UndefinedValueError, json.JSONDecodeError, ValueError) as e:
+            logger.warning(f"Could not load suggestions from environment: {e}, using defaults")
+            # Load default medical suggestions if not set or if environment loading fails
+            default_settings["chat.suggestions.samples"] = [
+                "Summarize the patient clinical context",
+                "What is the patient diagnosis and evidence?",
+                "What is the patient's medication history?",
+                "What is the patient's current treatment plan?"
+            ]
 
         return default_settings
 
