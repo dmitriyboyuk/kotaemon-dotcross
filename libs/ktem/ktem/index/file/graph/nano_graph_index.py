@@ -28,7 +28,19 @@ class NanoGraphRAGIndex(GraphRAGIndex):
     def get_retriever_pipelines(
         self, settings: dict, user_id: int, selected: Any = None
     ) -> list["BaseFileIndexRetriever"]:
-        _, file_ids, _ = selected
+        _, file_ids, _ = selected if selected else (None, [], None)
+        
+        # If no files are explicitly selected, get all available file IDs
+        if not file_ids:
+            from ktem.db.models import engine
+            from sqlmodel import Session, select
+            with Session(engine) as session:
+                statement = select(self._resources["Source"].id)
+                if self.config.get("private", False):
+                    statement = statement.where(self._resources["Source"].user == user_id)
+                results = session.execute(statement).all()
+                file_ids = [id[0] for id in results]
+
         # retrieval settings
         prefix = f"index.options.{self.id}."
         search_type = settings.get(prefix + "search_type", "local")

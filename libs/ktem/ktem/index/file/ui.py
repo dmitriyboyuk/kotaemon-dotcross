@@ -1440,19 +1440,20 @@ class FileSelector(BasePage):
 
     def default(self):
         if self._app.f_user_management:
-            return "disabled", [], -1
-        return "disabled", [], 1
+            return "all", [], -1  # Empty list for no specific selection
+        return "all", [], 1
 
     def on_building_ui(self):
         default_mode, default_selector, user_id = self.default()
 
         self.mode = gr.Radio(
-            value=default_mode,
+            value="all",  # Explicitly set to "all"
             choices=[
                 ("Search All", "all"),
                 ("Search In File(s)", "select"),
             ],
             container=False,
+            label="Search Mode"  # Added label for clarity
         )
         self.selector = gr.Dropdown(
             label="Files",
@@ -1461,7 +1462,7 @@ class FileSelector(BasePage):
             multiselect=True,
             container=False,
             interactive=True,
-            visible=False,
+            visible=False,  # Hidden by default since "all" is selected
         )
         self.selector_user_id = gr.State(value=user_id)
         self.selector_choices = gr.JSON(
@@ -1470,8 +1471,12 @@ class FileSelector(BasePage):
         )
 
     def on_register_events(self):
+        # Update visibility of selector based on mode
         self.mode.change(
-            fn=lambda mode, user_id: (gr.update(visible=mode == "select"), user_id),
+            fn=lambda mode, user_id: (
+                gr.update(visible=mode == "select"),  # Only show selector in "select" mode
+                user_id
+            ),
             inputs=[self.mode, self._app.user_id],
             outputs=[self.selector, self.selector_user_id],
         )
@@ -1489,15 +1494,12 @@ class FileSelector(BasePage):
 
     def get_selected_ids(self, components):
         mode, selected, user_id = components[0], components[1], components[2]
-        if user_id is None:
+        
+        # Return empty list if not logged in
+        if user_id is None or user_id == -1:
             return []
 
-        if mode == "disabled":
-            return []
-        elif mode == "select":
-            return selected
-
-        file_ids = []
+        # Get all available file IDs
         with Session(engine) as session:
             statement = select(self._index._resources["Source"].id)
             if self._index.config.get("private", False):
@@ -1505,15 +1507,31 @@ class FileSelector(BasePage):
                     self._index._resources["Source"].user == user_id
                 )
             results = session.execute(statement).all()
-            for (id,) in results:
-                file_ids.append(id)
+            all_file_ids = [str(id[0]) for id in results]  # Convert IDs to strings
 
-        return file_ids
+        # Return all files if in "all" mode or no specific selection in select mode
+        if mode == "all" or selected == -1 or not selected:
+            return all_file_ids
+
+        # Handle specific file selections in "select" mode
+        if selected:
+            if isinstance(selected, (list, tuple)):
+                # Filter out any -1 values and convert to strings
+                selected_ids = [str(id) for id in selected if id != -1]
+                return selected_ids if selected_ids else all_file_ids
+            elif isinstance(selected, int):
+                if str(selected) != "-1":
+                    return [str(selected)]
+                else:
+                    return all_file_ids
+
+        # Default to all files if no valid selection
+        return all_file_ids
 
     def load_files(self, selected_files, user_id):
         options: list = []
         available_ids = []
-        if user_id is None:
+        if user_id is None or user_id == -1:
             # not signed in
             return gr.update(value=selected_files, choices=options), options
 
@@ -1528,7 +1546,7 @@ class FileSelector(BasePage):
             results = session.execute(statement).all()
             for result in results:
                 available_ids.append(result[0].id)
-                options.append((result[0].name, result[0].id))
+                options.append((result[0].name, result[0].id))  # Store ID as integer
 
             # get group list from FileGroup table
             FileGroup = self._index._resources["FileGroup"]
@@ -1538,8 +1556,10 @@ class FileSelector(BasePage):
             results = session.execute(statement).all()
             for result in results:
                 item = result[0]
+                # Convert group file IDs to integers
+                group_files = [int(id) for id in item.data.get("files", [])]
                 options.append(
-                    (f"group: '{item.name}'", tuple(item.data.get("files", [])))
+                    (f"group: '{item.name}'", tuple(group_files))
                 )
 
         if selected_files:

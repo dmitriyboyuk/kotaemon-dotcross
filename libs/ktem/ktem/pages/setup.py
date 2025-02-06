@@ -10,13 +10,13 @@ from ktem.llms.manager import llms
 from ktem.rerankings.manager import reranking_models_manager as rerankers
 from theflow.settings import settings as flowsettings
 
-print("\n=== Debug - Setup Environment ===")
-print("Current working directory:", os.getcwd())
-print("Environment variables from config:")
-for key in os.environ:
-    if 'KH_FEEDBACK' in key:
-        print(f"{key} = {os.environ[key]}")
-print("===============================\n")
+# print("\n=== Debug - Setup Environment ===")
+# print("Current working directory:", os.getcwd())
+# print("Environment variables from config:")
+# for key in os.environ:
+#     if 'KH_FEEDBACK' in key:
+#         print(f"{key} = {os.environ[key]}")
+# print("===============================\n")
 
 KH_DEMO_MODE = getattr(flowsettings, "KH_DEMO_MODE", False)
 LOCAL_API_BASE = config("LOCAL_API_BASE", default="http://localhost:11434/v1/")
