@@ -496,9 +496,12 @@ GRAPHRAG_INDICES = [
         + " Collection" if (
             graph_type != "ktem.index.file.graph.NanoGraphRAGIndex" 
             and not KH_RENAME_UI)
-            else "Semantic Augmentation"
+            else "Knowledge"
             ),  # get last name
         "config": {
+            "max_file_size": 100000,
+            "chunk_size": 500,
+            "chunk_overlap": 100,
             "supported_file_types": (
                 ".png, .jpeg, .jpg, .tiff, .tif, .pdf, .xls, .xlsx, .doc, .docx, "
                 ".pptx, .csv, .html, .mhtml, .txt, .md, .zip"
@@ -512,8 +515,11 @@ GRAPHRAG_INDICES = [
 
 KH_INDICES = [
     {
-        "name": "File Collection",
+        "name": "Documents",
         "config": {
+            "max_file_size": 100000,
+            "chunk_size": 1000,
+            "chunk_overlap": 200,
             "supported_file_types": (
                 ".png, .jpeg, .jpg, .tiff, .tif, .pdf, .xls, .xlsx, .doc, .docx, "
                 ".pptx, .csv, .html, .mhtml, .txt, .md, .zip"

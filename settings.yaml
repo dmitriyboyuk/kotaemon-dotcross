@@ -9,15 +9,15 @@ llm:
   type: openai_chat
   model: gpt-4o-mini
   model_supports_json: true
-  request_timeout: 180.0
-  max_retries: 5
-  max_retry_wait: 60.0
-  concurrent_requests: 2
+  request_timeout: 300.0
+  max_retries: 8
+  max_retry_wait: 120.0
+  concurrent_requests: 1
   temperature: 0
 
 parallelization:
-  stagger: 2.0
-  num_threads: 2
+  stagger: 4.0
+  num_threads: 1
   # num_threads: 50 # the number of threads to use for parallel processing
 
 async_mode: threaded # or asyncio
@@ -29,24 +29,28 @@ embeddings:
     type: openai_embedding
     model: text-embedding-ada-002
     api_key: ${OPENAI_API_KEY}
-    request_timeout: 90.0
-    max_retries: 5
-    max_retry_wait: 45.0
+    request_timeout: 120.0
+    max_retries: 8
+    max_retry_wait: 120.0
+    concurrent_requests: 1
+    debug: true  # Enable debug output for embeddings
   vector_store:
     type: chroma
     collection_name: "documents"
     distance_metric: "l2"
     persist_directory: "ktem_app_data/user_data/vectorstore"
-  batch_size: 4
-  batch_max_tokens: 4096
-  concurrent_requests: 2
+    debug_mode: true  # Enable vector store debugging
+  batch_size: 4  # Increased batch size for smaller chunks
+  batch_max_tokens: 4096  # Adjusted for smaller chunk processing
+  concurrent_requests: 1
   sleep_on_rate_limit_recommendation: true
-  max_rate_limit_retries: 4  
+  max_rate_limit_retries: 8
 
 chunks:
-  size: 800
-  overlap: 50
-  group_by_columns: [id] # by default, we don't allow chunks to cross documents
+  size: 600  # Balanced size for semantic coherence while keeping context manageable
+  overlap: 100  # ~20% overlap to maintain context between chunks
+  group_by_columns: [id]
+  debug_output: true  # Enable debug output for chunking
 
 input:
   type: file # or blob
@@ -70,6 +74,8 @@ storage:
 reporting:
   type: file # or console, blob
   base_dir: "output"
+  debug_level: "DEBUG"  # Set debug level for reporting
+  log_format: "detailed"  # Use detailed logging format
   # connection_string: <azure_blob_storage_connection_string>
   # container_name: <azure_blob_storage_container_name>
 
@@ -80,9 +86,9 @@ entity_extraction:
   ## parallelization: override the global parallelization settings for this task
   ## async_mode: override the global async_mode settings for this task
   llm:
-    request_timeout: 300.0
-    max_retries: 6
-    max_retry_wait: 90.0
+    request_timeout: 180.0
+    max_retries: 5
+    max_retry_wait: 180.0
     concurrent_requests: 1
   prompt: "prompts/entity_extraction.txt"
   entity_types: [disease, treatment, drug, biomarker, clinical_trial, patient_outcome, side_effect, medical_procedure]
@@ -99,6 +105,11 @@ claim_extraction:
   ## llm: override the global llm settings for this task
   ## parallelization: override the global parallelization settings for this task
   ## async_mode: override the global async_mode settings for this task
+  llm:
+    request_timeout: 90.0
+    max_retries: 3
+    max_retry_wait: 90.0
+    concurrent_requests: 3
   enabled: true
   prompt: "prompts/claim_extraction.txt"
   description: "Extract key oncological claims, findings, and clinical insights that could be relevant to cancer research and treatment."
@@ -108,6 +119,11 @@ community_reports:
   ## llm: override the global llm settings for this task
   ## parallelization: override the global parallelization settings for this task
   ## async_mode: override the global async_mode settings for this task
+  llm:
+    request_timeout: 60.0
+    max_retries: 3
+    max_retry_wait: 60.0
+    concurrent_requests: 1
   prompt: "prompts/community_report.txt"
   max_length: 2000
   max_input_length: 8000
