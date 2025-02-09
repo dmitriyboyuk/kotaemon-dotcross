@@ -5,14 +5,10 @@ from openai import OpenAI
 from dotenv import load_dotenv
 from decouple import config
 
-# Load environment variables
-load_dotenv()
-
-# Test with API key from .env
-API_KEY = config('OPENAI_API_KEY')
-print(f"Using API key: {API_KEY[:10]}...")
-
 def test_openai():
+    # Reload environment variables
+    load_dotenv(override=True)
+    
     api_key = os.getenv("OPENAI_API_KEY")
     api_base = os.getenv("OPENAI_API_BASE")
     chat_model = os.getenv("OPENAI_CHAT_MODEL")
@@ -24,7 +20,7 @@ def test_openai():
     print("API Base:", api_base)
     print("Chat Model:", chat_model)
     print("Embedding Model:", embedding_model)
-    
+    cl
     try:
         # Test Chat Completion
         chat_response = client.chat.completions.create(
@@ -51,6 +47,9 @@ def test_openai():
         return False
 
 def test_ollama():
+    # Reload environment variables
+    load_dotenv(override=True)
+    
     print("\n=== Testing Ollama Connection ===")
     local_model = os.getenv("LOCAL_MODEL")
     local_embeddings = os.getenv("LOCAL_MODEL_EMBEDDINGS")
@@ -112,6 +111,9 @@ def test_ollama():
     return chat_success and embed_success
 
 if __name__ == "__main__":
+    # Reload environment variables
+    load_dotenv(override=True)
+    
     print("Testing API Connections...")
     
     openai_success = test_openai()
@@ -126,28 +128,4 @@ if __name__ == "__main__":
     if ollama_success:
         print("✅ Ollama connection is working")
     else:
-        print("❌ Ollama connection failed")
-
-# Create OpenAI client
-client = OpenAI(api_key=API_KEY)
-
-try:
-    # Test embeddings
-    print('Testing embeddings...')
-    response = client.embeddings.create(
-        model='text-embedding-ada-002',
-        input='Hello world'
-    )
-    print('✅ Embeddings API working!')
-    
-    # Test chat completion
-    print('\nTesting chat completion...')
-    response = client.chat.completions.create(
-        model='gpt-3.5-turbo',  # Using a known valid model
-        messages=[{'role': 'user', 'content': 'Say hello'}],
-        max_tokens=10
-    )
-    print('✅ Chat API working!')
-    
-except Exception as e:
-    print('❌ Error:', str(e)) 
+        print("❌ Ollama connection failed") 

@@ -156,14 +156,14 @@ local_search:
   llm_temperature: 0 # temperature for sampling
   llm_top_p: 1 # top-p sampling
   llm_n: 1 # Number of completions to generate
-  max_tokens: 32000
+  max_tokens: 128000
 
 global_search:
   llm_temperature: 0 # temperature for sampling
   llm_top_p: 1 # top-p sampling
   llm_n: 1 # Number of completions to generate
-  max_tokens: 3000
-  data_max_tokens: 12000
-  map_max_tokens: 1000
-  reduce_max_tokens: 2000
+  max_tokens: 128000
+  data_max_tokens: 128000
+  map_max_tokens: 32000
+  reduce_max_tokens: 10000
   concurrency: 32

@@ -22,7 +22,7 @@ class PrepareEvidencePipeline(BaseComponent):
             chunk of text into smaller ones. The first one will be retained.
     """
 
-    max_context_length: int = 32000
+    max_context_length: int = 128000
     trim_func: TokenSplitter | None = None
 
     def run(self, docs: list[RetrievedDocument]) -> Document:

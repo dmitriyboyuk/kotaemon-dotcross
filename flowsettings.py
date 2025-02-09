@@ -183,6 +183,24 @@ if config("AZURE_OPENAI_API_KEY", default="") and config("AZURE_OPENAI_ENDPOINT"
     # print("Azure OpenAI settings configured")
     # print("===============================\n")
 
+# Configure DeepSeek (deepseek-reasoner) settings
+DEEPSEEK_API_KEY = config("DEEPSEEK_API_KEY", default="")
+DEEPSEEK_API_BASE = config("DEEPSEEK_API_BASE", default="https://api.deepseek.com/v1").strip()
+DEEPSEEK_CHAT_MODEL = config("DEEPSEEK_CHAT_MODEL", default="deepseek-reasoner")
+
+if DEEPSEEK_API_KEY:
+    KH_LLMS["deepseek"] = {
+        "spec": {
+            "__type__": "kotaemon.llms.ChatOpenAI", # TODO: use the correct LLM handler name
+            "temperature": 0,
+            "base_url": DEEPSEEK_API_BASE,
+            "api_key": DEEPSEEK_API_KEY,
+            "model": DEEPSEEK_CHAT_MODEL,
+            "timeout": 30,
+        },
+        "default": False,
+    }
+
 # print("\n=== Debug - Final LLM Configuration ===")
 # print("Available LLMs:", list(KH_LLMS.keys()))
 # print("Default LLM:", next((k for k, v in KH_LLMS.items() if v.get("default")), None))
@@ -326,7 +344,7 @@ if config("LOCAL_MODEL", default=""):
         "spec": {
             "__type__": "kotaemon.llms.ChatOpenAI",
             "base_url": KH_OLLAMA_URL,
-            "model": config("LOCAL_MODEL", default="llama3.1:8b"),
+            "model": config("LOCAL_MODEL", default="deepseek-r1:1.5b"),
             "api_key": "ollama",
         },
         "default": False,
